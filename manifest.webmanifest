@@ -1,11 +1,11 @@
 {
   "name": "Columbo",
   "short_name": "Columbo",
-  "description": "Harness status at a glance",
+  "description": "Tonight's episode",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#101418",
-  "theme_color": "#101418",
+  "background_color": "#180e05",
+  "theme_color": "#180e05",
   "icons": [
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]
