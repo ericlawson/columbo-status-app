@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Columbo</title>
+<meta name="theme-color" content="#101418">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  :root {
+    --bg: #101418;
+    --tile: #171d23;
+    --line: #242e37;
+    --ink: #e8edf0;
+    --muted: #93a1ab;
+    --good-band: #14522f;
+    --good-ink: #b7e6c8;
+    --warn-band: #6b4a10;
+    --warn-ink: #ffe1a8;
+    --crit-band: #6e1f16;
+    --crit-ink: #ffc4b8;
+    --idle-band: #26313b;
+    --idle-ink: #c3ced6;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f2f5f6; --tile: #ffffff; --line: #d8dfe3;
+      --ink: #17222b; --muted: #5a6a75;
+      --good-band: #1f7a4d; --good-ink: #ffffff;
+      --warn-band: #a06a10; --warn-ink: #ffffff;
+      --crit-band: #b3362b; --crit-ink: #ffffff;
+      --idle-band: #4a5a66; --idle-ink: #ffffff;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { height: 100%; }
+  body {
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 26rem; margin: 0 auto; padding: 0 1rem 3rem; }
+
+  /* The verdict band — the whole point of the page. */
+  #band {
+    margin: 0 -1rem;
+    padding: calc(env(safe-area-inset-top, 0px) + 1.6rem) 1.3rem 1.4rem;
+    background: var(--idle-band);
+    color: var(--idle-ink);
+    transition: background 0.5s ease;
+  }
+  @media (prefers-reduced-motion: reduce) { #band { transition: none; } }
+  #band .stamp {
+    font: 600 0.72rem/1 ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+  #band h1 {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    margin-top: 0.35rem;
+    text-wrap: balance;
+  }
+  #band .reasons {
+    margin-top: 0.55rem;
+    font-size: 0.92rem;
+    opacity: 0.95;
+  }
+  #band.good { background: var(--good-band); color: var(--good-ink); }
+  #band.warn { background: var(--warn-band); color: var(--warn-ink); }
+  #band.crit { background: var(--crit-band); color: var(--crit-ink); }
+
+  #stalebar {
+    display: none;
+    margin: 0 -1rem;
+    padding: 0.55rem 1.3rem;
+    background: var(--crit-band);
+    color: var(--crit-ink);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  #stalebar.show { display: block; }
+
+  .tiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+    margin-top: 1rem;
+  }
+  .tile {
+    background: var(--tile);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0.7rem 0.8rem;
+  }
+  .tile .label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .tile .value {
+    margin-top: 0.2rem;
+    font: 600 1.25rem/1.2 ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .tile .sub {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 0.15rem;
+  }
+  .wide { grid-column: 1 / -1; }
+
+  h2 {
+    margin-top: 1.4rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  #alerts { margin-top: 0.5rem; display: grid; gap: 0.4rem; }
+  #alerts .alert {
+    font: 0.72rem/1.5 ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    background: var(--tile);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.5rem 0.6rem;
+    overflow-wrap: anywhere;
+    color: var(--muted);
+  }
+  #alerts .none { font-size: 0.85rem; color: var(--muted); font-family: system-ui, sans-serif; border: 0; background: none; padding: 0; }
+
+  footer {
+    margin-top: 1.8rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  footer p + p { margin-top: 0.3rem; }
+
+  #setup { margin-top: 1.4rem; display: none; }
+  #setup.show { display: block; }
+  #setup p { margin-top: 0.6rem; font-size: 0.9rem; }
+  #setup code {
+    font: 0.8rem ui-monospace, "SF Mono", Consolas, monospace;
+    background: var(--tile);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+    overflow-wrap: anywhere;
+  }
+  #refreshed { font-variant-numeric: tabular-nums; }
+  a { color: inherit; }
+</style>
+</head>
+<body>
+<div id="stalebar" role="alert"></div>
+<div class="wrap">
+  <header id="band" class="idle">
+    <div class="stamp" id="stamp">COLUMBO · CONNECTING</div>
+    <h1 id="verdict">…</h1>
+    <div class="reasons" id="reasons"></div>
+  </header>
+
+  <div class="tiles" id="tiles" hidden>
+    <div class="tile"><div class="label">Last cycle</div><div class="value" id="t-cycle">–</div></div>
+    <div class="tile"><div class="label">Heartbeat</div><div class="value" id="t-heart">–</div></div>
+    <div class="tile"><div class="label">Cycles today</div><div class="value" id="t-cycles">–</div></div>
+    <div class="tile"><div class="label">Gaps &gt;400s · 24h</div><div class="value" id="t-gaps">–</div></div>
+    <div class="tile wide"><div class="label">Evaluations</div><div class="value" id="t-evals">–</div><div class="sub" id="t-evals-sub"></div></div>
+    <div class="tile"><div class="label">Settlements</div><div class="value" id="t-settle">–</div></div>
+    <div class="tile"><div class="label">Credits · run</div><div class="value" id="t-run">–</div><div class="sub" id="t-run-sub"></div></div>
+    <div class="tile wide"><div class="label">Credits · month</div><div class="value" id="t-month">–</div><div class="sub" id="t-month-sub"></div></div>
+  </div>
+
+  <h2 id="alerts-h" hidden>Recent alerts</h2>
+  <div id="alerts"></div>
+
+  <div id="setup">
+    <p>This app needs its access token. Open it once via the full link:</p>
+    <p><code>…github.io/columbo-status-app/#t=&lt;read-token&gt;</code></p>
+    <p>Then add THAT page to your home screen — the token rides in the
+    bookmark and never leaves this phone. The token is the fine-grained
+    read-only one (Contents: Read on the status repo). Lost phone?
+    Revoke it in GitHub settings.</p>
+  </div>
+
+  <footer>
+    <p><span id="refreshed"></span></p>
+    <p>Checks every 5 minutes while open. If the logged time in the band is
+    more than 20 minutes old, the monitor or the loop is down.</p>
+    <p>Observability, not attestation — anything odd gets verified over SSH.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var REPO = "ericlawson/columbo-status";
+  var STALE_MIN = 20;
+  var band = document.getElementById("band");
+  var el = function (id) { return document.getElementById(id); };
+  var lastFetched = null;
+
+  function token() {
+    var m = location.hash.match(/[#&]t=([A-Za-z0-9_]+)/);
+    if (m) { try { localStorage.setItem("columbo-t", m[1]); } catch (e) {} return m[1]; }
+    try { return localStorage.getItem("columbo-t"); } catch (e) { return null; }
+  }
+
+  function age(s) {
+    if (s == null) return "unknown";
+    if (s < 120) return Math.round(s) + "s ago";
+    if (s < 7200) return Math.round(s / 60) + " min ago";
+    return (s / 3600).toFixed(1) + " h ago";
+  }
+  function num(n) { return n == null ? "–" : n.toLocaleString("en-US"); }
+
+  function setBand(cls, stamp, verdict, reasons) {
+    band.className = cls;
+    el("stamp").textContent = stamp;
+    el("verdict").textContent = verdict;
+    el("reasons").textContent = reasons || "";
+  }
+
+  function render(d) {
+    var gen = new Date(d.generated_at);
+    var staleMin = (Date.now() - gen.getTime()) / 60000;
+    var stamp = "COLUMBO · LOGGED " + d.generated_at.slice(11, 16) + "Z · " + d.generated_at.slice(5, 10);
+    var stale = staleMin > STALE_MIN;
+
+    el("stalebar").classList.toggle("show", stale);
+    if (stale) {
+      el("stalebar").textContent = "⚠︎ Data is " + Math.round(staleMin) +
+        " min old — the monitor or the droplet is down. Verify over SSH.";
+      setBand("crit", stamp, "STALE — NEEDS EYES",
+        "No fresh publish in " + Math.round(staleMin) + " minutes.");
+    } else if (d.verdict === "red") {
+      setBand("crit", stamp, "NEEDS EYES", (d.reasons || []).join("; "));
+    } else if (d.verdict === "yellow") {
+      setBand("warn", stamp, "Attention", (d.reasons || []).join("; "));
+    } else {
+      setBand("good", stamp, "Healthy", "");
+    }
+
+    el("tiles").hidden = false;
+    el("t-cycle").textContent = age(d.last_cycle_age_s);
+    el("t-heart").textContent = age(d.heartbeat_age_s);
+    el("t-cycles").textContent = num(d.cycles_today);
+    el("t-gaps").textContent = num(d.gaps_24h);
+    el("t-evals").textContent = num(d.evaluations_today) + " today";
+    el("t-evals-sub").textContent = num(d.evaluations_total) + " total · " + num(d.settlements_total) + " settled";
+    el("t-settle").textContent = num(d.settlements_total);
+    el("t-run").textContent = num(d.run_spent) + (d.credit_cap ? " / " + num(d.credit_cap) : "");
+    el("t-run-sub").textContent = d.credits_captured_at ? "as of " + d.credits_captured_at.slice(11, 16) + "Z" : "";
+    el("t-month").textContent = num(d.monthly_used) + " used";
+    el("t-month-sub").textContent = num(d.monthly_remaining) + " remaining this month";
+
+    var alerts = el("alerts");
+    alerts.textContent = "";
+    el("alerts-h").hidden = false;
+    if (d.alerts && d.alerts.length) {
+      d.alerts.slice().reverse().forEach(function (a) {
+        var div = document.createElement("div");
+        div.className = "alert";
+        div.textContent = a;
+        alerts.appendChild(div);
+      });
+    } else {
+      var none = document.createElement("div");
+      none.className = "none";
+      none.textContent = "none";
+      alerts.appendChild(none);
+    }
+  }
+
+  function refresh() {
+    var t = token();
+    if (!t) {
+      setBand("idle", "COLUMBO · SETUP", "No token", "");
+      el("setup").classList.add("show");
+      return;
+    }
+    el("setup").classList.remove("show");
+    fetch("https://api.github.com/repos/" + REPO + "/contents/data.json?ts=" + Date.now(), {
+      headers: {
+        Authorization: "Bearer " + t,
+        Accept: "application/vnd.github.raw+json",
+        "X-GitHub-Api-Version": "2022-11-28"
+      },
+      cache: "no-store"
+    }).then(function (r) {
+      if (r.status === 401 || r.status === 403) throw new Error("auth");
+      if (r.status === 404) throw new Error("nodata");
+      if (!r.ok) throw new Error("http " + r.status);
+      return r.json();
+    }).then(function (d) {
+      lastFetched = new Date();
+      el("refreshed").textContent = "Checked " + lastFetched.toTimeString().slice(0, 5);
+      render(d);
+    }).catch(function (e) {
+      if (e.message === "auth") {
+        setBand("warn", "COLUMBO · TOKEN", "Token rejected",
+          "The read token expired or was revoked — mint a new one and reopen via the full link.");
+        el("setup").classList.add("show");
+      } else if (e.message === "nodata") {
+        setBand("idle", "COLUMBO · WAITING", "No data yet",
+          "The publisher hasn't written data.json — it starts with the post-soak install.");
+      } else {
+        setBand("warn", "COLUMBO · OFFLINE", "Can't reach GitHub",
+          "Network or GitHub hiccup — will retry. Last good data stays below.");
+      }
+    });
+  }
+
+  refresh();
+  setInterval(refresh, 5 * 60 * 1000);
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) refresh();
+  });
+})();
+</script>
+</body>
+</html>
